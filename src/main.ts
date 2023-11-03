@@ -69,17 +69,32 @@ function makePit(i: number, j: number) {
     const container = document.createElement("div");
     container.innerHTML = `
                 <div>There is a pit here at "${i},${j}". It has value <span id="value">${value}</span>.</div>
-                <button id="poke">poke</button>`;
+                <button id="poke">poke</button>
+                <button id="deposit">deposit</button>`;
     const poke = container.querySelector<HTMLButtonElement>("#poke")!;
+    const deposit = container.querySelector<HTMLButtonElement>("#deposit")!;
     poke.addEventListener("click", () => {
-      value--;
-      container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
-        value.toString();
-      points++;
-      statusPanel.innerHTML = `${points} points accumulated`;
+      if (value > 0) {
+        value--;
+        container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
+          value.toString();
+        points++;
+        statusPanel.innerHTML = `${points} points accumulated`;
+      }
+    });
+    deposit.addEventListener("click", () => {
+      if (points > 0) {
+        value++;
+        container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
+          value.toString();
+
+        points--;
+        statusPanel.innerHTML = `${points} points accumulated`;
+      }
     });
     return container;
   });
+
   pit.addTo(map);
 }
 
