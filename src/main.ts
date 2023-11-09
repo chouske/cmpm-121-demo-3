@@ -3,19 +3,22 @@ import "./style.css";
 import leaflet from "leaflet";
 import luck from "./luck";
 import "./leafletWorkaround";
-//import { Board } from "./board";
+import { Board } from "./board";
 const MERRILL_CLASSROOM = leaflet.latLng({
   lat: 36.9995,
   lng: -122.0533,
 });
-
+/*interface Cell {
+  readonly i: number;
+  readonly j: number;
+}*/
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE = 8;
 const PIT_SPAWN_PROBABILITY = 0.1;
 
 const mapContainer = document.querySelector<HTMLElement>("#map")!;
-
+const theBoard = new Board(1, 4);
 const map = leaflet.map(mapContainer, {
   center: MERRILL_CLASSROOM,
   zoom: GAMEPLAY_ZOOM_LEVEL,
@@ -50,18 +53,26 @@ let points = 0;
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
 interface Coin {
-  origin: Geocache;
+  position: { i: number; j: number };
   serialNum: number;
 }
 class Geocache {
   coins: Coin[] = [];
-  location: leaflet.LatLng;
+  location: { i: number; j: number };
   initialCoins: number;
-  constructor(location: leaflet.LatLng, initialCoins: number) {
-    this.location = location;
+  constructor(location: { i: number; j: number }, initialCoins: number) {
+    this.location = theBoard.getCellForPoint(
+      leaflet.latLng(location.i, location.j)
+    );
     this.initialCoins = initialCoins;
-    for (let i = 0; i < initialCoins; i++) {
-      this.coins.push({ origin: this, serialNum: i });
+    for (let k = 0; k < initialCoins; k++) {
+      this.coins.push({
+        //position: { i: this.location.i, j: this.location.j },
+        position: theBoard.getCellForPoint(
+          leaflet.latLng(this.location.i, this.location.j)
+        ),
+        serialNum: k,
+      });
     }
   }
   removeCoin() {
@@ -88,7 +99,7 @@ function makePit(i: number, j: number) {
   const pit = leaflet.rectangle(bounds) as leaflet.Layer;
   pit.bindPopup(() => {
     let value = Math.floor(luck([i, j, "initialValue"].toString()) * 100);
-    let tempCache = new Geocache(leaflet.latLng(i, j), value);
+    let tempCache = new Geocache({ i, j }, value);
     allCaches.push(tempCache);
     const container = document.createElement("div");
     container.innerHTML = `
