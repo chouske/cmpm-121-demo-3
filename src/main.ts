@@ -3,7 +3,7 @@ import "./style.css";
 import leaflet from "leaflet";
 import luck from "./luck";
 import "./leafletWorkaround";
-
+//import { Board } from "./board";
 const MERRILL_CLASSROOM = leaflet.latLng({
   lat: 36.9995,
   lng: -122.0533,
@@ -49,7 +49,30 @@ sensorButton.addEventListener("click", () => {
 let points = 0;
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
-
+interface Coin {
+  origin: Geocache;
+  serialNum: number;
+}
+class Geocache {
+  coins: Coin[] = [];
+  location: leaflet.LatLng;
+  initialCoins: number;
+  constructor(location: leaflet.LatLng, initialCoins: number) {
+    this.location = location;
+    this.initialCoins = initialCoins;
+    for (let i = 0; i < initialCoins; i++) {
+      this.coins.push({ origin: this, serialNum: i });
+    }
+  }
+  removeCoin() {
+    return this.coins.pop();
+  }
+  addCoin(addedCoin: Coin) {
+    return this.coins.push(addedCoin);
+  }
+}
+let allCaches: Geocache[] = [];
+let playerCoins: Coin[] = [];
 function makePit(i: number, j: number) {
   const bounds = leaflet.latLngBounds([
     [
@@ -63,9 +86,10 @@ function makePit(i: number, j: number) {
   ]);
 
   const pit = leaflet.rectangle(bounds) as leaflet.Layer;
-
   pit.bindPopup(() => {
     let value = Math.floor(luck([i, j, "initialValue"].toString()) * 100);
+    let tempCache = new Geocache(leaflet.latLng(i, j), value);
+    allCaches.push(tempCache);
     const container = document.createElement("div");
     container.innerHTML = `
                 <div>There is a pit here at "${i},${j}". It has value <span id="value">${value}</span>.</div>
@@ -78,16 +102,25 @@ function makePit(i: number, j: number) {
         value--;
         container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           value.toString();
+        let removedCoin = tempCache.removeCoin();
+        if (removedCoin != undefined) {
+          console.log(removedCoin);
+          playerCoins.push(removedCoin);
+        }
         points++;
         statusPanel.innerHTML = `${points} points accumulated`;
       }
     });
     deposit.addEventListener("click", () => {
       if (points > 0) {
+        let addedCoin = playerCoins.pop();
+        if (addedCoin != undefined) {
+          console.log(addedCoin);
+          tempCache.addCoin(addedCoin);
+        }
         value++;
         container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           value.toString();
-
         points--;
         statusPanel.innerHTML = `${points} points accumulated`;
       }
