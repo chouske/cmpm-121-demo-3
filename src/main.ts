@@ -48,7 +48,16 @@ sensorButton.addEventListener("click", () => {
     map.setView(playerMarker.getLatLng());
   });
 });
-
+const westButton = document.querySelector("#west");
+const eastButton = document.querySelector("#east");
+const northButton = document.querySelector("#north");
+const southButton = document.querySelector("#south");
+let directionButtons = [westButton, eastButton, northButton, southButton];
+directionButtons.every((element) => {
+  element?.addEventListener("click", () => {
+    //playerMarker.setLatLng(theBoard.getCellForPoint(playerMarker.getLatLng());
+  });
+});
 let points = 0;
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
