@@ -41,18 +41,34 @@ export class Board {
   getCellsNearPoint(point: leaflet.LatLng): Cell[] {
     const resultCells: Cell[] = [];
     //const originCell = this.getCellForPoint(point);
+    //console.log("player pos:");
+    //console.log(point);
     this.knownCells.forEach((value) => {
-      let tempLat = value.i;
-      let tempLng = value.j;
+      let tempLat = value.i * this.tileWidth + 36.9995;
+      let tempLng = value.j * this.tileWidth - 122.0533;
+      /*console.log(
+        "point: i: " +
+          tempLat +
+          " j: " +
+          tempLng +
+          " which is: " +
+          value.i +
+          " " +
+          value.j
+      );*/
+      //console.log(Math.abs(point.lat - tempLat));
+      //console.log(Math.abs(point.lng - tempLng));
       if (
-        Math.abs(point.lat - tempLat) < 0.0002 &&
-        Math.abs(point.lng - tempLng) < 0.0002
+        Math.abs(point.lat - tempLat) <
+          this.tileVisibilityRadius * this.tileWidth &&
+        Math.abs(point.lng - tempLng) <
+          this.tileVisibilityRadius * this.tileWidth
       ) {
         resultCells.push(value);
       }
     });
-
     // ...
+    //console.log(this.knownCells);
     return resultCells;
   }
 }

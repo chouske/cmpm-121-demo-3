@@ -18,7 +18,7 @@ const NEIGHBORHOOD_SIZE = 8;
 const PIT_SPAWN_PROBABILITY = 0.1;
 
 const mapContainer = document.querySelector<HTMLElement>("#map")!;
-const theBoard = new Board(1, 4);
+const theBoard = new Board(0.0001, 2);
 const map = leaflet.map(mapContainer, {
   center: MERRILL_CLASSROOM,
   zoom: GAMEPLAY_ZOOM_LEVEL,
@@ -48,16 +48,71 @@ sensorButton.addEventListener("click", () => {
     map.setView(playerMarker.getLatLng());
   });
 });
+let hiddencaches: string[] = [];
+let shownpits: { thePit: leaflet.Layer; theCache: Geocache }[] = [];
 const westButton = document.querySelector("#west");
 const eastButton = document.querySelector("#east");
 const northButton = document.querySelector("#north");
 const southButton = document.querySelector("#south");
-let directionButtons = [westButton, eastButton, northButton, southButton];
-directionButtons.every((element) => {
-  element?.addEventListener("click", () => {
-    //playerMarker.setLatLng(theBoard.getCellForPoint(playerMarker.getLatLng());
+function pitCheck(): void {
+  let nearCells = theBoard.getCellsNearPoint(playerMarker.getLatLng());
+  nearCells.forEach((nearCellsElement) => {
+    const { i, j } = nearCellsElement;
+    hiddencaches.forEach((hiddenCachesElement, index) => {
+      let compareCache: Geocache = JSON.parse(hiddenCachesElement);
+      if (compareCache.location.i == i && compareCache.location.j == j) {
+        hiddencaches.splice(index, 1);
+        shownpits.push(makePit(i, j, hiddenCachesElement));
+      }
+    });
   });
+  let found = false;
+  shownpits.forEach((shownPitsElement) => {
+    found = false;
+    nearCells.forEach((nearCellsElement) => {
+      const { i, j } = nearCellsElement;
+      if (
+        shownPitsElement.theCache.location.i == i &&
+        shownPitsElement.theCache.location.j == j
+      ) {
+        found = true;
+      }
+    });
+    if (found == false) {
+      hiddencaches.push(shownPitsElement.theCache.toMomento());
+      shownPitsElement.thePit.remove();
+    }
+  });
+}
+westButton!.addEventListener("click", () => {
+  let tempLat = playerMarker.getLatLng().lat;
+  let tempLng = playerMarker.getLatLng().lng;
+  playerMarker.setLatLng(leaflet.latLng(tempLat, tempLng - 0.0001));
+  map.setView(playerMarker.getLatLng());
+  pitCheck();
 });
+eastButton!.addEventListener("click", () => {
+  let tempLat = playerMarker.getLatLng().lat;
+  let tempLng = playerMarker.getLatLng().lng;
+  playerMarker.setLatLng(leaflet.latLng(tempLat, tempLng + 0.0001));
+  map.setView(playerMarker.getLatLng());
+  pitCheck();
+});
+southButton!.addEventListener("click", () => {
+  let tempLat = playerMarker.getLatLng().lat;
+  let tempLng = playerMarker.getLatLng().lng;
+  playerMarker.setLatLng(leaflet.latLng(tempLat - 0.0001, tempLng));
+  map.setView(playerMarker.getLatLng());
+  pitCheck();
+});
+northButton!.addEventListener("click", () => {
+  let tempLat = playerMarker.getLatLng().lat;
+  let tempLng = playerMarker.getLatLng().lng;
+  playerMarker.setLatLng(leaflet.latLng(tempLat + 0.0001, tempLng));
+  map.setView(playerMarker.getLatLng());
+  pitCheck();
+});
+
 let points = 0;
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
@@ -90,10 +145,20 @@ class Geocache {
   addCoin(addedCoin: Coin) {
     return this.coins.push(addedCoin);
   }
+  toMomento() {
+    return JSON.stringify(this);
+  }
+  fromMomento(inputString: string) {
+    let newObj = JSON.parse(inputString);
+    this.location.i = newObj.location.i;
+    this.location.j = newObj.location.j;
+    this.initialCoins = newObj.initialCoins;
+    this.coins = newObj.coins;
+  }
 }
-let allCaches: Geocache[] = [];
+//let hiddencaches: Geocache[] = [];
 let playerCoins: Coin[] = [];
-function makePit(i: number, j: number) {
+function makePit(i: number, j: number, pitData: any = null) {
   const bounds = leaflet.latLngBounds([
     [
       MERRILL_CLASSROOM.lat + i * TILE_DEGREES,
@@ -106,13 +171,16 @@ function makePit(i: number, j: number) {
   ]);
 
   const pit = leaflet.rectangle(bounds) as leaflet.Layer;
+  let value = Math.floor(luck([i, j, "initialValue"].toString()) * 100);
+  let tempCache = new Geocache({ i, j }, value);
+  if (pitData != null) {
+    tempCache.fromMomento(pitData);
+  }
   pit.bindPopup(() => {
-    let value = Math.floor(luck([i, j, "initialValue"].toString()) * 100);
-    let tempCache = new Geocache({ i, j }, value);
-    allCaches.push(tempCache);
+    //let value = Math.floor(luck([i, j, "initialValue"].toString()) * 100);
     const container = document.createElement("div");
     container.innerHTML = `
-                <div>There is a pit here at "${i},${j}". It has value <span id="value">${value}</span>.</div>
+                <div>There is a pit here at "${i},${j}". It has value <span id="value">${tempCache.coins.length}</span>.</div>
                 <button id="poke">poke</button>
                 <button id="deposit">deposit</button>`;
     const poke = container.querySelector<HTMLButtonElement>("#poke")!;
@@ -120,13 +188,13 @@ function makePit(i: number, j: number) {
     poke.addEventListener("click", () => {
       if (value > 0) {
         value--;
-        container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
-          value.toString();
         let removedCoin = tempCache.removeCoin();
         if (removedCoin != undefined) {
-          console.log(removedCoin);
+          //console.log(removedCoin);
           playerCoins.push(removedCoin);
         }
+        container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
+          tempCache.coins.length.toString();
         points++;
         statusPanel.innerHTML = `${points} points accumulated`;
       }
@@ -135,12 +203,12 @@ function makePit(i: number, j: number) {
       if (points > 0) {
         let addedCoin = playerCoins.pop();
         if (addedCoin != undefined) {
-          console.log(addedCoin);
+          //console.log(addedCoin);
           tempCache.addCoin(addedCoin);
         }
         value++;
         container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
-          value.toString();
+          tempCache.coins.length.toString();
         points--;
         statusPanel.innerHTML = `${points} points accumulated`;
       }
@@ -149,6 +217,11 @@ function makePit(i: number, j: number) {
   });
 
   pit.addTo(map);
+  if (pitData == null) {
+    hiddencaches.push(tempCache.toMomento());
+    pit.remove();
+  }
+  return { thePit: pit, theCache: tempCache };
 }
 
 for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
@@ -158,3 +231,4 @@ for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
     }
   }
 }
+pitCheck();
