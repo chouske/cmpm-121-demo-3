@@ -40,13 +40,24 @@ const playerMarker = leaflet.marker(MERRILL_CLASSROOM);
 playerMarker.bindTooltip("That's you!");
 playerMarker.addTo(map);
 const sensorButton = document.querySelector("#sensor")!;
+let sensorButtonToggled = false;
+let currentpos: any;
+navigator.geolocation.watchPosition((position) => {
+  currentpos = position;
+});
 sensorButton.addEventListener("click", () => {
-  navigator.geolocation.watchPosition((position) => {
+  if (sensorButtonToggled == false) {
+    sensorButtonToggled = true;
+  } else {
+    sensorButtonToggled = false;
+  }
+  /*navigator.geolocation.watchPosition((position) => {
     playerMarker.setLatLng(
       leaflet.latLng(position.coords.latitude, position.coords.longitude)
     );
     map.setView(playerMarker.getLatLng());
   });
+  */
 });
 let hiddencaches: string[] = [];
 let shownpits: { thePit: leaflet.Layer; theCache: Geocache }[] = [];
@@ -232,3 +243,24 @@ for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
   }
 }
 pitCheck();
+function update() {
+  navigator.geolocation.watchPosition((position) => {
+    if (
+      currentpos.coords.latitude != position.coords.latitude &&
+      currentpos.coords.longitude != position.coords.longitude
+    ) {
+      currentpos = position;
+      if (sensorButtonToggled == true) {
+        playerMarker.setLatLng(
+          leaflet.latLng(
+            currentpos.coords.latitude,
+            currentpos.coords.longitude
+          )
+        );
+      }
+      map.setView(playerMarker.getLatLng());
+    }
+    window.requestAnimationFrame(update);
+  });
+}
+window.requestAnimationFrame(update);
