@@ -48,6 +48,10 @@ navigator.geolocation.watchPosition((position) => {
 sensorButton.addEventListener("click", () => {
   if (sensorButtonToggled == false) {
     sensorButtonToggled = true;
+    playerMarker.setLatLng(
+      leaflet.latLng(currentpos.coords.latitude, currentpos.coords.longitude)
+    );
+    map.setView(playerMarker.getLatLng());
   } else {
     sensorButtonToggled = false;
   }
