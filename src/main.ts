@@ -8,10 +8,7 @@ const MERRILL_CLASSROOM = leaflet.latLng({
   lat: 36.9995,
   lng: -122.0533,
 });
-/*interface Cell {
-  readonly i: number;
-  readonly j: number;
-}*/
+
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE = 8;
@@ -35,7 +32,7 @@ leaflet
       '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   })
   .addTo(map);
-
+let lineCoords: any[][] = [];
 const playerMarker = leaflet.marker(MERRILL_CLASSROOM);
 playerMarker.bindTooltip("That's you!");
 playerMarker.addTo(map);
@@ -45,6 +42,8 @@ let currentpos: any;
 navigator.geolocation.watchPosition((position) => {
   currentpos = position;
 });
+lineCoords.push([playerMarker.getLatLng().lat, playerMarker.getLatLng().lng]);
+let polyline = leaflet.polyline(lineCoords, { color: "red" }).addTo(map);
 sensorButton.addEventListener("click", () => {
   if (sensorButtonToggled == false) {
     sensorButtonToggled = true;
@@ -55,6 +54,8 @@ sensorButton.addEventListener("click", () => {
   } else {
     sensorButtonToggled = false;
   }
+  lineCoords = [[playerMarker.getLatLng().lat, playerMarker.getLatLng().lng]];
+  updateLine();
   /*navigator.geolocation.watchPosition((position) => {
     playerMarker.setLatLng(
       leaflet.latLng(position.coords.latitude, position.coords.longitude)
@@ -82,7 +83,7 @@ function pitCheck(): void {
     });
   });
   let found = false;
-  shownpits.forEach((shownPitsElement) => {
+  shownpits.forEach((shownPitsElement, index) => {
     found = false;
     nearCells.forEach((nearCellsElement) => {
       const { i, j } = nearCellsElement;
@@ -94,6 +95,7 @@ function pitCheck(): void {
       }
     });
     if (found == false) {
+      shownpits.splice(index, 1);
       hiddencaches.push(shownPitsElement.theCache.toMomento());
       shownPitsElement.thePit.remove();
     }
@@ -105,6 +107,7 @@ westButton!.addEventListener("click", () => {
   playerMarker.setLatLng(leaflet.latLng(tempLat, tempLng - 0.0001));
   map.setView(playerMarker.getLatLng());
   pitCheck();
+  updateLine();
 });
 eastButton!.addEventListener("click", () => {
   let tempLat = playerMarker.getLatLng().lat;
@@ -112,6 +115,7 @@ eastButton!.addEventListener("click", () => {
   playerMarker.setLatLng(leaflet.latLng(tempLat, tempLng + 0.0001));
   map.setView(playerMarker.getLatLng());
   pitCheck();
+  updateLine();
 });
 southButton!.addEventListener("click", () => {
   let tempLat = playerMarker.getLatLng().lat;
@@ -119,6 +123,7 @@ southButton!.addEventListener("click", () => {
   playerMarker.setLatLng(leaflet.latLng(tempLat - 0.0001, tempLng));
   map.setView(playerMarker.getLatLng());
   pitCheck();
+  updateLine();
 });
 northButton!.addEventListener("click", () => {
   let tempLat = playerMarker.getLatLng().lat;
@@ -126,6 +131,7 @@ northButton!.addEventListener("click", () => {
   playerMarker.setLatLng(leaflet.latLng(tempLat + 0.0001, tempLng));
   map.setView(playerMarker.getLatLng());
   pitCheck();
+  updateLine();
 });
 
 let points = 0;
@@ -261,10 +267,45 @@ function update() {
             currentpos.coords.longitude
           )
         );
+        updateLine();
       }
       map.setView(playerMarker.getLatLng());
+      pitCheck();
     }
     window.requestAnimationFrame(update);
   });
 }
 window.requestAnimationFrame(update);
+function reset() {
+  hiddencaches = [];
+  navigator.geolocation.watchPosition((position) => {
+    currentpos = position;
+  });
+  playerMarker.setLatLng(MERRILL_CLASSROOM);
+  points = 0;
+  statusPanel.innerHTML = "No points yet...";
+  playerCoins = [];
+  shownpits.forEach((shownpitselement) => {
+    shownpitselement.thePit.remove();
+  });
+  shownpits = [];
+  for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
+    for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
+      if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
+        makePit(i, j);
+      }
+    }
+  }
+  map.setView(playerMarker.getLatLng());
+  lineCoords = [[playerMarker.getLatLng().lat, playerMarker.getLatLng().lng]];
+  updateLine();
+  pitCheck();
+}
+function updateLine() {
+  lineCoords.push([playerMarker.getLatLng().lat, playerMarker.getLatLng().lng]);
+  polyline.setLatLngs(lineCoords);
+}
+const resetButton = document.querySelector("#reset");
+resetButton!.addEventListener("click", () => {
+  reset();
+});
