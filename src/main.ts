@@ -33,15 +33,21 @@ leaflet
   })
   .addTo(map);
 let lineCoords: any[][] = [];
+let showncaches: string[] = [];
 const playerMarker = leaflet.marker(MERRILL_CLASSROOM);
 playerMarker.bindTooltip("That's you!");
 playerMarker.addTo(map);
 const sensorButton = document.querySelector("#sensor")!;
 let sensorButtonToggled = false;
-let currentpos: any;
+let currentpos: GeolocationPosition;
 navigator.geolocation.watchPosition((position) => {
   currentpos = position;
 });
+if (localStorage.getItem("playerpos") != null) {
+  let temppos = JSON.parse(localStorage.getItem("playerpos")!);
+  playerMarker.setLatLng(temppos);
+  map.setView(playerMarker.getLatLng());
+}
 lineCoords.push([playerMarker.getLatLng().lat, playerMarker.getLatLng().lng]);
 let polyline = leaflet.polyline(lineCoords, { color: "red" }).addTo(map);
 sensorButton.addEventListener("click", () => {
@@ -65,6 +71,9 @@ sensorButton.addEventListener("click", () => {
   */
 });
 let hiddencaches: string[] = [];
+if (localStorage.getItem("hiddencaches") != null) {
+  hiddencaches = JSON.parse(localStorage.getItem("hiddencaches")!);
+}
 let shownpits: { thePit: leaflet.Layer; theCache: Geocache }[] = [];
 const westButton = document.querySelector("#west");
 const eastButton = document.querySelector("#east");
@@ -135,8 +144,14 @@ northButton!.addEventListener("click", () => {
 });
 
 let points = 0;
+if (localStorage.getItem("points") != null) {
+  points = JSON.parse(localStorage.getItem("points")!);
+}
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
+if (localStorage.getItem("statusPanel.innerHTML") != null) {
+  statusPanel.innerHTML = localStorage.getItem("statusPanel.innerHTML")!;
+}
 interface Coin {
   position: { i: number; j: number };
   serialNum: number;
@@ -177,8 +192,10 @@ class Geocache {
     this.coins = newObj.coins;
   }
 }
-//let hiddencaches: Geocache[] = [];
 let playerCoins: Coin[] = [];
+if (localStorage.getItem("playercoins") != null) {
+  playerCoins = JSON.parse(localStorage.getItem("playercoins")!);
+}
 function makePit(i: number, j: number, pitData: any = null) {
   const bounds = leaflet.latLngBounds([
     [
@@ -248,11 +265,40 @@ function makePit(i: number, j: number, pitData: any = null) {
 for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
   for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
     if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
-      makePit(i, j);
+      if (localStorage.getItem("hiddencaches") == null) {
+        makePit(i, j);
+      }
+      //makePit(i, j);
     }
   }
 }
-pitCheck();
+if (localStorage.getItem("hiddencaches") != null) {
+  //console.log("hiddnecacheslength: " + hiddencaches.length);
+  let tempCache: Geocache = new Geocache({ i: 0, j: 0 }, 0);
+  hiddencaches.forEach((hiddencacheselement) => {
+    tempCache.fromMomento(hiddencacheselement);
+    let tempelement = hiddencacheselement;
+    //hiddencaches.splice(index, 1);
+    let pitResult = makePit(
+      tempCache.location.i,
+      tempCache.location.j,
+      tempelement
+    );
+    pitResult.thePit.remove();
+  });
+}
+if (localStorage.getItem("showncaches") != null) {
+  let tempCache: Geocache = new Geocache({ i: 0, j: 0 }, 0);
+  showncaches = JSON.parse(localStorage.getItem("showncaches")!);
+  showncaches.forEach((showncacheselement) => {
+    //console.log(hiddencaches.length);
+    //console.log(showncaches.length);
+    tempCache.fromMomento(showncacheselement);
+    shownpits.push(
+      makePit(tempCache.location.i, tempCache.location.j, showncacheselement)
+    );
+  });
+}
 function update() {
   navigator.geolocation.watchPosition((position) => {
     if (
@@ -277,6 +323,7 @@ function update() {
 }
 window.requestAnimationFrame(update);
 function reset() {
+  localStorage.clear();
   hiddencaches = [];
   navigator.geolocation.watchPosition((position) => {
     currentpos = position;
@@ -309,3 +356,23 @@ const resetButton = document.querySelector("#reset");
 resetButton!.addEventListener("click", () => {
   reset();
 });
+
+function saveState() {
+  showncaches = [];
+  shownpits.forEach((shownpitselement) => {
+    showncaches.push(shownpitselement.theCache.toMomento());
+  });
+
+  localStorage.setItem("hiddencaches", JSON.stringify(hiddencaches));
+  localStorage.setItem("showncaches", JSON.stringify(showncaches));
+  localStorage.setItem("playerpos", JSON.stringify(playerMarker.getLatLng()));
+  localStorage.setItem("points", JSON.stringify(points));
+  localStorage.setItem("statusPanel.innerHTML", statusPanel.innerHTML);
+  localStorage.setItem("playercoins", JSON.stringify(playerCoins));
+  //localStorage.setItem("shownpits", JSON.stringify(shownpits[0].theCache));
+  //linecoords
+  window.requestAnimationFrame(saveState);
+}
+//localStorage.clear();
+pitCheck();
+window.requestAnimationFrame(saveState);
